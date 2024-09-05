@@ -1,0 +1,27 @@
+pip install Flask Flask-SQLAlchemy smtplib
+
+import smtplib
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import datetime, timedelta
+
+app = Flask(__name__)
+
+# App Configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///transactions.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Initializing database
+db = SQLAlchemy(app)
+
+# Defining Transaction model
+class Transaction(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_email = db.Column(db.String(120), nullable=False)
+    transaction_time = db.Column(db.DateTime, nullable=False)
+    status = db.Column(db.String(20), default="pending")
+
+    def __repr__(self):
+        return f"<Transaction {self.id}, Status: {self.status}>"
