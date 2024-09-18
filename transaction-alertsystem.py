@@ -1,5 +1,11 @@
-pip install smtplib
+# Installing packages
+# the pip installations will  handle email sending via SMTP
+# pip install smtplib
+# pip install secure-smtplib
+
+pip install smtplib the Module to define SMTP protocol to send emails
 pip install secure-smtplib
+
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
