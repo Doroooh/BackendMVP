@@ -1,7 +1,1 @@
-pip install smtplib
-pip install secure-smtplib
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-import datetime
-import time
+
