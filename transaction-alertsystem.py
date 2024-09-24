@@ -118,3 +118,13 @@ def monitor_transactions():
 if __name__ == '__main__':
     monitor_transactions()  # Starting transaction monitoring loop
     app.run(debug=True)  # Starting Flask application in debug mode
+
+#Sample transaction
+new_transaction = Transaction(user_email='waithirak.dorothy@gmail.com', channel = 'mpesa', amount= Kes 10000.00)
+db.session.add(new_transaction)
+db.session.commit()
+
+if time_elapsed > DELAY_THRESHOLD:
+    tx.status = 'delayed'
+    send_alert_email(tx.user_email, 'Transaction Delay Alert', 'Your transaction has been delayed.')
+    db.session.commit()
