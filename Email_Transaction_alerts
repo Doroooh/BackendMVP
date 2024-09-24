@@ -1,0 +1,142 @@
+#Create Virtual Environment and Install Dependencies
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install Flask Flask-SQLAlchemy Flask-Migrate Flask-Mail
+
+# Application Configuration
+import os
+
+class Config:
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///transactions.db'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    MAIL_SERVER = 'smtp.gmail.com'
+    MAIL_PORT = 587
+    MAIL_USE_TLS = True
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER')
+
+# App Factory
+
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+from flask_mail import Mail
+from config import Config
+
+db = SQLAlchemy()
+migrate = Migrate()
+mail = Mail()
+
+def create_app(config_class=Config):
+    app = Flask(__name__)
+    app.config.from_object(config_class)
+
+    db.init_app(app)
+    migrate.init_app(app, db)
+    mail.init_app(app)
+
+    from app import models, views
+    app.register_blueprint(views.bp)
+
+    return app
+
+# Database Models 
+
+from datetime import datetime
+from app import db
+
+class Transaction(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_email = db.Column(db.String(120), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    status = db.Column(db.String(20), default='pending')  # pending, completed, delayed
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    processed_time = db.Column(db.DateTime)
+
+    def __repr__(self):
+        return f'<Transaction {self.id} - {self.status}>'
+
+#Email Sending Logic
+from flask_mail import Message
+from app import mail
+
+def send_alert_email(to, subject, body):
+    msg = Message(subject, recipients=[to])
+    msg.body = body
+    try:
+        mail.send(msg)
+        return True
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+        return False
+
+#Route Logic
+from flask import Blueprint, jsonify, request
+from datetime import datetime, timedelta
+from app.models import Transaction, db
+from app.email_utils import send_alert_email
+
+bp = Blueprint('main', __name__)
+
+DELAY_THRESHOLD = timedelta(minutes=5)
+
+@bp.route('/transaction', methods=['POST'])
+def create_transaction():
+    data = request.get_json()
+    new_transaction = Transaction(user_email=data['user_email'], amount=data['amount'])
+    db.session.add(new_transaction)
+    db.session.commit()
+    return jsonify({'message': 'Transaction created', 'transaction_id': new_transaction.id})
+
+@bp.route('/process_transactions')
+def process_transactions():
+    # Simulate checking transaction delays and send alerts
+    transactions = Transaction.query.filter_by(status='pending').all()
+    for tx in transactions:
+        time_elapsed = datetime.utcnow() - tx.timestamp
+        if time_elapsed > DELAY_THRESHOLD:
+            tx.status = 'delayed'
+            tx.processed_time = datetime.utcnow()
+            db.session.commit()
+
+            # Send email alert
+            email_sent = send_alert_email(
+                tx.user_email,
+                'Transaction Delay Alert',
+                f"Your transaction with ID {tx.id} has been delayed."
+            )
+            if email_sent:
+                print(f"Alert sent to {tx.user_email}")
+            else:
+                print(f"Failed to send alert for {tx.id}")
+
+    return jsonify({'message': 'Transactions processed'})
+
+#App Entry Point
+from app import create_app, db
+from app.models import Transaction
+
+app = create_app()
+
+@app.shell_context_processor
+def make_shell_context():
+    return {'db': db, 'Transaction': Transaction}
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+#Database setup 
+# Initialize the database
+flask db init
+flask db migrate -m "Initial migration"
+flask db upgrade
+
+
+
+
+
